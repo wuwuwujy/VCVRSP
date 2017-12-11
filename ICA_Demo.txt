@@ -1,0 +1,78 @@
+import matplotlib.pyplot as plt
+import os.path
+import numpy
+from scipy import signal
+from sklearn.decomposition import FastICA, PCA
+i=0
+mat=[]
+cat=numpy.array([0,0,0])
+class MyOVBox(OVBox):
+	def __init__(self):
+		OVBox.__init__(self)
+		self.signalHeader = None
+		
+
+		
+	def process(self):
+		path=(self.setting['Store_Path'])
+		com_num=int(self.setting['Component_num'])
+		#print(com_num)
+		global i
+		global mat
+		#global cat
+		for chunkIndex in range( len(self.input[0]) ):
+		
+			if(type(self.input[0][chunkIndex]) == OVSignalHeader):
+				self.signalHeader = self.input[0].pop()
+				print(self.signalHeader.dimensionSizes)
+				self.output[0].append(self.signalHeader)
+				#print(self.signalHeader.samplingRate)
+				#print(self.signalHeader.dimensionSizes)
+			elif(type(self.input[0][chunkIndex]) == OVSignalBuffer):
+				chunk = self.input[0].pop()
+				numpyBuffer = numpy.transpose(numpy.array(chunk).reshape(tuple(self.signalHeader.dimensionSizes)))
+				X=[]
+				#print(self.signalHeader.dimensionSizes[0])
+				if(i==1):
+					if (os.path.isfile(path+".npy")):
+						mat=numpy.load(path+".npy")
+						print("Found and loaded exsisting mixing matrix.",mat)
+					else:
+						#cat=numpy.concatenate((cat,numpyBuffer))
+						ica=FastICA(n_components=self.signalHeader.dimensionSizes[0])
+						X=ica.fit_transform(numpyBuffer)
+						#print(ica.mixing_.shape)
+						mat=numpy.linalg.inv(ica.mixing_)
+						plt.imshow(mat, cmap='hot', interpolation='nearest')
+						plt.savefig('C:\Users\Zeno\Downloads\ica_for_demo\heat.png')
+					
+						numpy.save(path,mat)
+						if (not os.path.isfile(path)):
+							print("Stored mixing matrix.",mat)
+				else:
+					#print(mat)
+					#print(numpyBuffer.shape,mat.shape)
+					X=numpy.transpose(numpyBuffer)
+					
+					for k in range (X.shape[0]):
+						#print(X.shape)
+						X[k]=X[k]*mat[com_num][k]
+									
+				X=numpy.transpose(X)
+				Y=[]
+				for j in range(0,self.signalHeader.dimensionSizes[0]):
+					Y=Y+map(lambda x: x[j],X)
+
+				chunk = OVSignalBuffer(chunk.startTime, chunk.endTime, list(Y))
+				self.output[0].append(chunk)
+			elif(type(self.input[0][chunkIndex]) == OVSignalEnd):
+				self.output[0].append(self.input[0].pop())
+			
+ 			i+=1
+
+box = MyOVBox()
+
+				
+					
+
+		
