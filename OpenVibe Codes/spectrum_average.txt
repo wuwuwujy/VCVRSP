@@ -1,0 +1,13 @@
+class OVStreamedMatrixHeader(OVChunk):
+	def __init__(self):
+		OVChunk.__init__(self)
+		self.signalHeader = None
+		
+
+		
+	def process(self):
+		print(self.input)
+		print(self.getDimensionCount())
+
+
+box = MyOVBox()
